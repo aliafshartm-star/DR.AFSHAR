@@ -2,20 +2,22 @@ import os
 import sqlite3
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
-    Application, CommandHandler, MessageHandler,
-    ContextTypes, filters
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
 )
 
 # =========================
 # CONFIG
 # =========================
 TOKEN = os.getenv("BOT_TOKEN")
-
 OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 
-PRICE = 1000000
-CARD_NUMBER = "5859831868090340"
-CARD_OWNER = "دکتر ناهید افشار"
+PRICE = int(os.getenv("PRICE", "1000000"))
+CARD_NUMBER = os.getenv("CARD_NUMBER", "5859831868090340")
+CARD_OWNER = os.getenv("CARD_OWNER", "دکتر ناهید افشار")
 
 WORK_DAYS = ["شنبه", "دوشنبه", "چهارشنبه"]
 
@@ -48,6 +50,7 @@ user_state = {}
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [["فارسی", "English"]]
+
     await update.message.reply_text(
         "زبان را انتخاب کنید",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -58,6 +61,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 async def main_menu(update: Update):
     keyboard = [["📅 درخواست نوبت"]]
+
     await update.message.reply_text(
         "به سیستم نوبت‌دهی خوش آمدید",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -68,18 +72,19 @@ async def main_menu(update: Update):
 # =========================
 async def show_days(update: Update):
     keyboard = [[d] for d in WORK_DAYS]
+
     await update.message.reply_text(
         "روز را انتخاب کنید",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
 
 # =========================
-# SHOW TIMES
+# TIME SLOTS
 # =========================
 def get_times(day):
     cursor.execute("""
-    SELECT time FROM appointments
-    WHERE day=? AND status='confirmed'
+        SELECT time FROM appointments
+        WHERE day=? AND status='confirmed'
     """, (day,))
     booked = [i[0] for i in cursor.fetchall()]
 
@@ -89,6 +94,7 @@ def get_times(day):
             t = f"{h:02d}:{m:02d}"
             if t not in booked:
                 times.append(t)
+
     return times
 
 async def show_times(update: Update, day):
@@ -103,19 +109,19 @@ async def show_times(update: Update, day):
 # =========================
 # SAVE APPOINTMENT
 # =========================
-async def save_appointment(update: Update, day, time):
+async def save_appointment(update: Update, context: ContextTypes.DEFAULT_TYPE, day, time):
     user = update.message.from_user
 
     cursor.execute("""
-    INSERT INTO appointments (user_id, username, day, time, status)
-    VALUES (?, ?, ?, ?, 'pending')
+        INSERT INTO appointments (user_id, username, day, time, status)
+        VALUES (?, ?, ?, ?, 'pending')
     """, (user.id, user.username, day, time))
     conn.commit()
 
     await update.message.reply_text(f"""
 📅 نوبت ثبت شد (در انتظار رسید)
 
-💰 هزینه: {PRICE}
+💰 هزینه ویزیت: {PRICE}
 💳 کارت: {CARD_NUMBER}
 👤 به نام: {CARD_OWNER}
 
@@ -136,8 +142,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo = update.message.photo[-1].file_id
 
     cursor.execute("""
-    SELECT id FROM appointments
-    WHERE user_id=? ORDER BY id DESC LIMIT 1
+        SELECT id FROM appointments
+        WHERE user_id=? ORDER BY id DESC LIMIT 1
     """, (user.id,))
 
     row = cursor.fetchone()
@@ -147,9 +153,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     appt_id = row[0]
 
     cursor.execute("""
-    UPDATE appointments
-    SET receipt=?, status='waiting_admin'
-    WHERE id=?
+        UPDATE appointments
+        SET receipt=?, status='waiting_admin'
+        WHERE id=?
     """, (photo, appt_id))
     conn.commit()
 
@@ -164,7 +170,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 User: @{user.username}
 ID: {user.id}
-ID appt: {appt_id}
+Appointment ID: {appt_id}
 
 /confirm_{appt_id}
 /reject_{appt_id}
@@ -172,7 +178,7 @@ ID appt: {appt_id}
         )
 
 # =========================
-# ADMIN CONFIRM / REJECT
+# ADMIN CONFIRM
 # =========================
 async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != OWNER_ID:
@@ -181,14 +187,17 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     appt_id = update.message.text.split("_")[1]
 
     cursor.execute("""
-    UPDATE appointments
-    SET status='confirmed'
-    WHERE id=?
+        UPDATE appointments
+        SET status='confirmed'
+        WHERE id=?
     """, (appt_id,))
     conn.commit()
 
-    await update.message.reply_text("تایید شد")
+    await update.message.reply_text("نوبت تایید شد")
 
+# =========================
+# ADMIN REJECT
+# =========================
 async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != OWNER_ID:
         return
@@ -196,13 +205,13 @@ async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     appt_id = update.message.text.split("_")[1]
 
     cursor.execute("""
-    UPDATE appointments
-    SET status='rejected'
-    WHERE id=?
+        UPDATE appointments
+        SET status='rejected'
+        WHERE id=?
     """, (appt_id,))
     conn.commit()
 
-    await update.message.reply_text("رد شد")
+    await update.message.reply_text("نوبت رد شد")
 
 # =========================
 # MESSAGE HANDLER
@@ -224,7 +233,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif ":" in text:
         day = user_state.get(user_id, {}).get("day")
         if day:
-            await save_appointment(update, day, text)
+            await save_appointment(update, context, day, text)
 
 # =========================
 # MAIN
@@ -238,7 +247,7 @@ def main():
     app.add_handler(MessageHandler(filters.Regex(r"^/confirm_"), confirm))
     app.add_handler(MessageHandler(filters.Regex(r"^/reject_"), reject))
 
-    print("Bot running...")
+    print("Bot is running...")
     app.run_polling()
 
 if __name__ == "__main__":
