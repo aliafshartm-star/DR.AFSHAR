@@ -10,12 +10,13 @@ from telegram.ext import (
 )
 
 # =========================
-# CONFIG
+# CONFIG (ENV)
 # =========================
 TOKEN = os.getenv("BOT_TOKEN")
-OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 
+OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 PRICE = int(os.getenv("PRICE", "1000000"))
+
 CARD_NUMBER = os.getenv("CARD_NUMBER", "5859831868090340")
 CARD_OWNER = os.getenv("CARD_OWNER", "دکتر ناهید افشار")
 
@@ -52,7 +53,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [["فارسی", "English"]]
 
     await update.message.reply_text(
-        "زبان را انتخاب کنید",
+        "👋 زبان را انتخاب کنید",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
 
@@ -63,7 +64,7 @@ async def main_menu(update: Update):
     keyboard = [["📅 درخواست نوبت"]]
 
     await update.message.reply_text(
-        "به سیستم نوبت‌دهی خوش آمدید",
+        "🏥 به سیستم نوبت‌دهی خوش آمدید",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
 
@@ -74,7 +75,7 @@ async def show_days(update: Update):
     keyboard = [[d] for d in WORK_DAYS]
 
     await update.message.reply_text(
-        "روز را انتخاب کنید",
+        "📅 روز را انتخاب کنید",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
 
@@ -86,6 +87,7 @@ def get_times(day):
         SELECT time FROM appointments
         WHERE day=? AND status='confirmed'
     """, (day,))
+
     booked = [i[0] for i in cursor.fetchall()]
 
     times = []
@@ -102,7 +104,7 @@ async def show_times(update: Update, day):
     keyboard = [[t] for t in times]
 
     await update.message.reply_text(
-        "ساعت را انتخاب کنید",
+        "⏰ ساعت را انتخاب کنید",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
 
@@ -119,19 +121,19 @@ async def save_appointment(update: Update, context: ContextTypes.DEFAULT_TYPE, d
     conn.commit()
 
     await update.message.reply_text(f"""
-📅 نوبت ثبت شد (در انتظار رسید)
+📌 نوبت شما ثبت شد (در انتظار رسید)
 
-💰 هزینه ویزیت: {PRICE}
+💰 مبلغ: {PRICE} تومان
 💳 کارت: {CARD_NUMBER}
 👤 به نام: {CARD_OWNER}
 
-لطفاً عکس رسید را ارسال کنید.
+📸 لطفاً عکس رسید را ارسال کنید
 """)
 
     if OWNER_ID:
         await context.bot.send_message(
             OWNER_ID,
-            f"📌 نوبت جدید\n@{user.username}\n{day} {time}"
+            f"📌 نوبت جدید\n@{user.username}\n{day} - {time}"
         )
 
 # =========================
@@ -159,7 +161,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """, (photo, appt_id))
     conn.commit()
 
-    await update.message.reply_text("رسید دریافت شد، منتظر تایید باشید")
+    await update.message.reply_text("✅ رسید دریافت شد، منتظر تایید ادمین باشید")
 
     if OWNER_ID:
         await context.bot.send_photo(
@@ -168,9 +170,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption=f"""
 📌 رسید جدید
 
-User: @{user.username}
-ID: {user.id}
-Appointment ID: {appt_id}
+👤 @{user.username}
+🆔 {user.id}
+📅 Appointment ID: {appt_id}
 
 /confirm_{appt_id}
 /reject_{appt_id}
@@ -193,7 +195,7 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """, (appt_id,))
     conn.commit()
 
-    await update.message.reply_text("نوبت تایید شد")
+    await update.message.reply_text("✅ نوبت تایید شد")
 
 # =========================
 # ADMIN REJECT
@@ -211,7 +213,7 @@ async def reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """, (appt_id,))
     conn.commit()
 
-    await update.message.reply_text("نوبت رد شد")
+    await update.message.reply_text("❌ نوبت رد شد")
 
 # =========================
 # MESSAGE HANDLER
